@@ -87,4 +87,7 @@ export class AuthService {
      const decodedToken:any= jwtDecode(token);
      return decodedToken.role || null;
    }
+
+   forgotPassword =(email:string):Observable<AuthResponse> =>
+    this.http.post<AuthResponse>(`${this.apiUrl}/Account/forgot-password`,{email,});
 }
