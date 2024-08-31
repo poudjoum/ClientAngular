@@ -7,6 +7,9 @@ import { HttpClient } from '@angular/common/http';
 import { jwtDecode } from 'jwt-decode';
 import { RegisterRequest } from '../interfaces/register-request';
 import { UserDetail} from '../interfaces/user-detail';
+
+import { ChangePasswordRequest } from '../interfaces/change-password-request';
+import { ResetPasswordComponent } from '../pages/reset-password/reset-password.component';
 import { ResetPasswordRequest } from '../interfaces/reset-password-request';
 
 @Injectable({
@@ -15,7 +18,9 @@ import { ResetPasswordRequest } from '../interfaces/reset-password-request';
 export class AuthService {
 
   apiUrl:string =environment.apiUrl;
-  private tokenKey='token'
+  
+  private userKey='user';
+
   constructor(private http: HttpClient) { }
   login(data: LoginRequest): Observable<AuthResponse> {
     return this.http
@@ -23,7 +28,7 @@ export class AuthService {
       .pipe(
         map((response) => {
           if (response.isSuccess) {
-            localStorage.setItem(this.tokenKey, response.token.toString());
+            localStorage.setItem(this.userKey, JSON.stringify(response));
           }
           return response;
         }),
@@ -36,15 +41,15 @@ export class AuthService {
   isLoggedIn =():boolean=>{
     const token=this.getToken();
     if(!token) return false;
-    return !this.isTokenExpired();
+    return true;
   }
   private isTokenExpired(){
     const token=this.getToken();
     if(!token)return true;
     const decoded=jwtDecode(token);
     const isTokenExpired=Date.now() >= decoded['exp']!*1000;
-    if(isTokenExpired) this.logout();
-    return isTokenExpired
+    //if(isTokenExpired) this.logout();
+    return true;
   }
   getUserDetail=()=>{
     const token=this.getToken();
@@ -59,16 +64,30 @@ export class AuthService {
     return userDetail;
   }
   logout=():void =>{
-    localStorage.removeItem(this.tokenKey);
+    
+    localStorage.removeItem(this.userKey);
   }
-   getToken=(): string | null =>localStorage.getItem(this.tokenKey) || '';
+   getToken=(): string | null =>{
+    const user =localStorage.getItem(this.userKey);
+    if(!user) return null;
+    const userDetail:AuthResponse =JSON.parse(user);
+    return userDetail.token;
+   }
+
+   getRefreshToken=(): string | null =>{
+    const user =localStorage.getItem(this.userKey);
+    if(!user) return null;
+    const userDetail:AuthResponse =JSON.parse(user);
+    return userDetail.refreshToken;
+   }
+
   register(data:RegisterRequest):Observable<AuthResponse> {
     return this.http
     .post<AuthResponse>(`${this.apiUrl}/account/register`,data)
     .pipe(
       map((response)=>{
         if(response.isSuccess){
-          localStorage.setItem(this.tokenKey,response.token.toString());
+          localStorage.setItem(this.userKey,response.token.toString());
         }
         return response;
       })
@@ -92,6 +111,20 @@ export class AuthService {
    forgotPassword =(email:string):Observable<AuthResponse> =>
     this.http.post<AuthResponse>(`${this.apiUrl}/Account/forgot-password`,{email});
 
+
    resetPassword =(data:ResetPasswordRequest):Observable<AuthResponse> =>
     this.http.post<AuthResponse>(`${this.apiUrl}/Account/reset-password`,data);
+
+   
+   
+   refreshToken =(data:{
+    email:string;
+    token:string;
+    refreshToken:string;
+   }):Observable<AuthResponse> =>
+    this.http.post<AuthResponse>(`${this.apiUrl}/Account/refresh-token`,data);
+
+
+   changePassword =(data:ChangePasswordRequest):Observable<AuthResponse> =>
+    this.http.post<AuthResponse>(`${this.apiUrl}/Account/change-password`,data);
 }
